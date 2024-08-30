@@ -2,4 +2,4 @@
 
 ## Uso de libreria three.js
 
-<a href="https://rubik.cesargarces.com" target="_blank">URL: rubik.cesargarces.com</a> 
+URL: [rubik.cesargarces.com](https://rubik.cesargarces.com)
