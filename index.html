@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rubik's Cube with Rotations</title>
+  <title>Rubik's Cube with Touch Controls</title>
   <style>
     body {
       margin: 0;
@@ -14,6 +14,7 @@
 
     canvas {
       display: block;
+      touch-action: none;
     }
 
     .instructions {
@@ -24,41 +25,57 @@
       background-color: rgba(0, 0, 0, 0.7);
       padding: 10px;
       border-radius: 5px;
+      font-size: 14px;
+      max-width: 80%;
     }
 
-    h1 {
-      margin: 0 0 10px 0;
-      font-size: 18px;
+    @media (max-width: 600px) {
+      .instructions {
+        font-size: 12px;
+      }
     }
 
-    ul {
-      margin: 0;
-      padding-left: 20px;
+    .touch-controls {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
     }
 
-    li {
-      margin-bottom: 5px;
+    .touch-button {
+      width: 50px;
+      height: 50px;
+      background-color: rgba(255, 255, 255, 0.5);
+      border: none;
+      border-radius: 50%;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
     }
   </style>
 </head>
 
 <body>
   <div class="instructions">
-    <h1>Rubik's Cube 3D - Instrucciones</h1>
-    <ul>
-      <li>Rotar el cubo: Arrastrar con el mouse</li>
-      <li>Rotar caras:
-        <ul>
-          <li>Derecha: Flecha derecha (→)</li>
-          <li>Izquierda: Flecha izquierda (←)</li>
-          <li>Arriba: Flecha arriba (↑)</li>
-          <li>Abajo: Flecha abajo (↓)</li>
-          <li>Frente: Tecla 'f'</li>
-          <li>Atrás: Tecla 'b'</li>
-        </ul>
-      </li>
-    </ul>
+    <h2>Controles:</h2>
+    <p>Desktop: Arrastra con el mouse para rotar el cubo. Usa las flechas del teclado y las teclas F/B para rotar caras.
+    </p>
+    <p>Mobile: Desliza para rotar el cubo. Usa los botones en pantalla para rotar caras.</p>
   </div>
+
+  <div class="touch-controls">
+    <button class="touch-button" data-action="left">←</button>
+    <button class="touch-button" data-action="right">→</button>
+    <button class="touch-button" data-action="up">↑</button>
+    <button class="touch-button" data-action="down">↓</button>
+    <button class="touch-button" data-action="front">F</button>
+    <button class="touch-button" data-action="back">B</button>
+  </div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     // Crear una escena
@@ -136,29 +153,69 @@
     });
 
     // Eventos del mouse para rotar el cubo completo
-    renderer.domElement.addEventListener('mousedown', (e) => {
-      isDragging = true;
-    });
+    renderer.domElement.addEventListener('mousedown', onPointerDown);
+    renderer.domElement.addEventListener('mousemove', onPointerMove);
+    renderer.domElement.addEventListener('mouseup', onPointerUp);
 
-    renderer.domElement.addEventListener('mousemove', (e) => {
+    // Eventos táctiles para rotar el cubo completo
+    renderer.domElement.addEventListener('touchstart', onPointerDown);
+    renderer.domElement.addEventListener('touchmove', onPointerMove);
+    renderer.domElement.addEventListener('touchend', onPointerUp);
+
+    function onPointerDown(event) {
+      isDragging = true;
+      if (event.touches) {
+        previousMousePosition.x = event.touches[0].clientX;
+        previousMousePosition.y = event.touches[0].clientY;
+      } else {
+        previousMousePosition.x = event.clientX;
+        previousMousePosition.y = event.clientY;
+      }
+    }
+
+    function onPointerMove(event) {
       if (isDragging) {
+        let clientX, clientY;
+        if (event.touches) {
+          clientX = event.touches[0].clientX;
+          clientY = event.touches[0].clientY;
+        } else {
+          clientX = event.clientX;
+          clientY = event.clientY;
+        }
+
         const deltaMove = {
-          x: e.offsetX - previousMousePosition.x,
-          y: e.offsetY - previousMousePosition.y
+          x: clientX - previousMousePosition.x,
+          y: clientY - previousMousePosition.y
         };
 
         rubiksCube.rotation.y += deltaMove.x * 0.01;
         rubiksCube.rotation.x += deltaMove.y * 0.01;
+
+        previousMousePosition = {
+          x: clientX,
+          y: clientY
+        };
       }
+    }
 
-      previousMousePosition = {
-        x: e.offsetX,
-        y: e.offsetY
-      };
-    });
-
-    renderer.domElement.addEventListener('mouseup', (e) => {
+    function onPointerUp() {
       isDragging = false;
+    }
+
+    // Manejar botones táctiles
+    document.querySelectorAll('.touch-button').forEach(button => {
+      button.addEventListener('click', () => {
+        const action = button.dataset.action;
+        switch (action) {
+          case 'left': rotateFace('x', -1, -1); break;
+          case 'right': rotateFace('x', 1, 1); break;
+          case 'up': rotateFace('y', 1, 1); break;
+          case 'down': rotateFace('y', -1, -1); break;
+          case 'front': rotateFace('z', 1, 1); break;
+          case 'back': rotateFace('z', -1, -1); break;
+        }
+      });
     });
 
     // Función de animación
@@ -168,6 +225,13 @@
     }
 
     animate();
+
+    // Manejar cambios de tamaño de ventana
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   </script>
 </body>
 
